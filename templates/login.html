@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CNG Tool - Login</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+
+<div class="login-wrap">
+  <div class="login-card">
+    <h1>🛢️ CNG Inspection Tool</h1>
+    <p class="sub">Sign in to continue</p>
+
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter username" autocomplete="off">
+
+    <label>Password</label>
+    <input type="password" id="pwd" placeholder="Enter password">
+
+    <button id="loginBtn">Login</button>
+    <div id="err" class="err"></div>
+  </div>
+</div>
+
+<script>
+async function doLogin() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("pwd").value;
+  const err = document.getElementById("err");
+  err.innerText = "";
+
+  if (!username || !password) {
+    err.innerText = "Please fill both fields";
+    return;
+  }
+  const res = await fetch("/api/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({username, password})
+  });
+  const data = await res.json();
+  if (data.ok) window.location.href = "/dashboard";
+  else err.innerText = data.msg || "Login failed";
+}
+
+document.getElementById("loginBtn").onclick = doLogin;
+document.getElementById("pwd").addEventListener("keydown", e => {
+  if (e.key === "Enter") doLogin();
+});
+document.getElementById("username").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("pwd").focus();
+});
+</script>
+</body>
+</html>

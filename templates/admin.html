@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Admin - CNG Tool</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">🛢️ CNG Inspection Tool</div>
+  <div class="user-info">
+    <button class="profile-btn" id="profileBtn">👑 {{ user }} (Admin)</button>
+    <a href="/logout" class="btn-outline">Logout</a>
+  </div>
+</header>
+
+<main class="container">
+  <div class="tiles" id="adminTiles">
+    <div class="tile" data-target="usersCard">
+      <div class="tile-icon">👥</div>
+      <h3>User Management</h3>
+      <p>Add, edit, remove users &amp; view activity</p>
+    </div>
+    <div class="tile" data-target="entryCard">
+      <div class="tile-icon">📝</div>
+      <h3>Data Entry Tool</h3>
+      <p>Add new inspection records</p>
+    </div>
+    <div class="tile" data-target="excelCard">
+      <div class="tile-icon">📊</div>
+      <h3>Excel View / Edit</h3>
+      <p>Search, filter, edit, remove or print</p>
+    </div>
+    <div class="tile" data-target="overallCard">
+      <div class="tile-icon">📈</div>
+      <h3>Overall</h3>
+      <p>Monthly counts (pie chart)</p>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="card hidden" id="usersCard">
+    <h2>👥 User Management</h2>
+    <div class="add-user-form">
+      <input id="newUser" placeholder="New username">
+      <input id="newPass" type="password" placeholder="Password">
+      <select id="newRole">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button class="btn-primary" id="addUserBtn">➕ Add User</button>
+    </div>
+    <div class="table-wrap">
+      <table id="usersTable">
+        <thead>
+          <tr>
+            <th>Sl No</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Password</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="userMsg" class="msg"></div>
+
+    <hr style="margin: 26px 0; border: none; border-top: 1px solid #e7ebf3;">
+
+    <h3 style="color:#1e3c72; margin-bottom: 12px;">📈 Entries per User (by Inspection Date)</h3>
+    <div class="filter-bar">
+      <label>From</label>
+      <input type="date" id="ucFrom">
+      <label>To</label>
+      <input type="date" id="ucTo">
+      <button class="btn-primary" id="ucFilterBtn">🔍 Show Counts</button>
+      <button class="btn-secondary" id="ucClearBtn">↺ Clear</button>
+    </div>
+    <div class="table-wrap">
+      <table id="countsTable">
+        <thead>
+          <tr><th>User</th><th>Total Entries</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ENTRY -->
+  <div class="card hidden" id="entryCard">
+    <h2>📝 New Inspection Entry</h2>
+    <form id="entryForm" class="form-grid" onsubmit="return false;">
+      <div><label>Name *</label><input name="name" required></div>
+      <div><label>Phone No *</label><input name="phone" required></div>
+      <div><label>Mail ID</label><input type="email" name="email"></div>
+            <div><label>Vehicle Type</label><input name="vehicle_type" placeholder="e.g. Car, Bike, Auto"></div>
+      <div><label>Vehicle No</label><input name="vehicle_no" placeholder="e.g. KA01AB1234"></div>
+      <div><label>Date of Inspection *</label><input type="date" name="inspection_date" required></div>
+      <div><label>Date of Expiry *</label><input type="date" name="expiry_date" required></div>
+    </form>
+    <div class="actions">
+      <button class="btn-primary" id="saveBtn">💾 Save</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <!-- EXCEL -->
+  <div class="card hidden" id="excelCard">
+    <h2>📊 Excel Sheet View / Edit</h2>
+
+    <div class="filter-bar">
+      <input type="text" id="searchBox" class="search-input"
+             placeholder="🔎 Search by name, phone, mail, vehicle, entered by…">
+
+      <label>From (Inspection Date)</label>
+      <input type="date" id="filterFrom">
+      <label>To (Inspection Date)</label>
+      <input type="date" id="filterTo">
+      <button class="btn-primary" id="filterBtn">🔍 Filter</button>
+      <button class="btn-secondary" id="clearFilterBtn">↺ Clear</button>
+      <a class="btn-secondary" href="/api/export.xlsx">⬇️ Download Excel</a>
+      <button class="btn-secondary" id="printBtn">🖨️ Print</button>
+      <span class="filter-count" id="filterCount"></span>
+    </div>
+
+    <div class="table-wrap" id="printArea">
+      <table id="excelTable">
+        <thead>
+          <tr>
+            <th>Sl No</th><th>Name</th><th>Phone No</th><th>Mail ID</th>
+            <th>Vehicle Type</th><th>Vehicle No</th>
+            <th>Inspection Date</th><th>Expiry Date</th>
+            <th>Entered By</th><th class="no-print">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="print-header hidden" id="printHeader">
+      <h2>CNG Inspection Report</h2>
+      <p id="printRange"></p>
+    </div>
+  </div>
+
+  <!-- OVERALL -->
+  <div class="card hidden" id="overallCard">
+    <h2>📈 Overall - Entries per Month</h2>
+    <div class="filter-bar">
+      <label>Year</label>
+      <input type="number" id="chartYear" min="2000" max="2100" style="width:110px;">
+      <button class="btn-primary" id="loadChartBtn">↻ Refresh</button>
+      <span class="filter-count" id="chartTotal"></span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="monthlyChart" height="240"></canvas>
+    </div>
+  </div>
+</main>
+
+<!-- PROFILE MODAL -->
+<div class="modal-backdrop hidden" id="profileModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>👤 My Profile</h3>
+      <button class="modal-close" id="profileClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted">This email receives the daily and monthly reports.</p>
+      <label>Username</label><input id="pfUsername" readonly>
+      <label>Role</label><input id="pfRole" readonly>
+      <label>Full Name</label><input id="pfFullName" placeholder="Your full name">
+      <label>Phone No</label><input id="pfPhone" placeholder="e.g. 9876543210">
+      <label>Mail ID</label><input type="email" id="pfEmail" placeholder="you@example.com">
+      <div id="pfMsg" class="msg"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="profileCancel">Cancel</button>
+      <button class="btn-primary" id="profileSave">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>
+  initTileNavigation();
+  initEntryForm();
+  initUsersCard();
+  initUserCounts();
+  initFilterBar();
+  initProfile();
+  initOverallChart();
+  initSharedDataRefresh();
+  document.querySelector('[data-target="excelCard"]').addEventListener('click', () => loadExcel());
+</script>
+</body>
+</html>
