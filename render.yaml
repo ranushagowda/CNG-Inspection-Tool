@@ -2,14 +2,12 @@ services:
   - type: web
     name: cng-inspection-app
     runtime: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: cng-inspection-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: INITIAL_ADMIN_USERNAME
@@ -17,49 +15,6 @@ services:
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
       - key: EMAIL_ENABLED
-        value: "true"
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: SMTP_FROM
-        sync: false
+        value: "false"
       - key: APP_TIMEZONE
         value: Asia/Kolkata
-
-  - type: cron
-    name: cng-inspection-mail
-    runtime: python
-    plan: starter
-    schedule: "0 12 * * *"
-    buildCommand: pip install -r requirements.txt
-    startCommand: python scheduled_mail.py
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: cng-inspection-db
-          property: connectionString
-      - key: EMAIL_ENABLED
-        value: "true"
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: SMTP_FROM
-        sync: false
-      - key: APP_TIMEZONE
-        value: Asia/Kolkata
-
-databases:
-  - name: cng-inspection-db
-    databaseName: cng_inspection
-    user: cng_app
-    plan: basic-256mb

@@ -1,68 +1,86 @@
-# Private online deployment
+# Private online deployment (free-tier setup)
 
-This project is a browser-based app. Render runs the Flask app, PostgreSQL stores
-the shared records, and a Render cron job sends reports. Users only need the
-HTTPS link and an account created by an administrator.
+Users open the hosted HTTPS link in a browser; they do not install Python or
+PostgreSQL. The free-tier setup uses:
+
+- Render's free web service for the Flask app.
+- Neon's free PostgreSQL database for shared records.
+- A scheduled GitHub Actions workflow for daily and monthly emails.
+
+This is a $0 hobby setup, not an always-on or production-reliability promise.
+Render's free web service sleeps after inactivity, the free database and
+GitHub Actions have quotas/limits, and GitHub may delay scheduled workflows.
+An email configured for 5:30 PM India time is scheduled then, but is not
+guaranteed to arrive exactly at 5:30 PM.
 
 ## Before deployment
 
-- Create a private GitHub repository and push the app source, including
-  `render.yaml`. Do not upload `cng.db`, Excel files, `.env` files, or other
-  private data. `.gitignore` excludes the local database and generated workbook.
-- The Render Blueprint provisions paid services: a Starter web service, a
-  Starter cron job, and a Basic PostgreSQL database. Review current prices and
-  database backup/retention options in Render before approving creation.
-- Rotate the email app password that was previously present in the source code.
-  For Gmail, use an app password rather than your normal account password.
+- Keep the GitHub repository private. The checked-in `.gitignore` excludes
+  `cng.db`, Excel files, and generated files; never force-add local records,
+  credentials, or `.env` files.
+- Create a Neon free project and copy its PostgreSQL connection string. Treat
+  this URL as a password. Do not use Render's free PostgreSQL for permanent
+  data: Render's free database expires after 30 days.
+- Rotate the email app password that was previously present in the source
+  code. For Gmail, use an app password, not your normal account password.
 
-## Deploy and migrate existing records
+## Deploy the app and migrate existing records
 
 1. In Render, create a Blueprint from the private GitHub repository and deploy
-   `render.yaml`. Set the prompted `INITIAL_ADMIN_USERNAME`,
-   `INITIAL_ADMIN_PASSWORD`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` values in
-   Render's private environment settings. Use a password of at least 12
-   characters. If you want the migration to replace the existing admin
-   password with this new password, set `INITIAL_ADMIN_USERNAME` to that
-   existing admin's username. Do not commit or share credentials in chat.
-2. Wait for the PostgreSQL database to be created. Copy its **External
-   Database URL** from the database page. Treat it as a password.
-3. On the computer that has the existing `cng.db`, open PowerShell in the
-   project folder and set the URL for this terminal only:
+   `render.yaml`. Choose only the **Free** web plan. Set the prompted
+   `DATABASE_URL` to the Neon connection string and set
+   `INITIAL_ADMIN_USERNAME` and `INITIAL_ADMIN_PASSWORD`. Use a password of at
+   least 12 characters. If migrating an existing account, use that admin's
+   existing username so the initial password can be replaced. Do not paste
+   secrets into chat or commit them.
+2. After the web service is deployed, copy the same Neon connection string into
+   these private GitHub repository Actions secrets:
+   `DATABASE_URL`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM`. Add them under
+   **Settings → Secrets and variables → Actions → New repository secret**.
+   These are used only by the report workflow.
+3. On the computer containing the existing `cng.db`, open PowerShell in the
+   project folder and set the Neon URL for that terminal session:
 
    ```powershell
-   $env:DATABASE_URL = "paste-the-Render-External-Database-URL-here"
+   $env:DATABASE_URL = "paste-the-Neon-connection-string-here"
    python migrate_sqlite_to_postgres.py
    ```
 
    The migration refuses to overwrite inspection data. It replaces only the
-   single bootstrap admin created during first deployment, copies existing
-   users and records, and hashes any legacy plain-text passwords. Keep the
-   database URL private and do not paste it into source files or chat.
-4. Wait for the web service to finish starting, sign in, and confirm records
-   and admin email addresses are correct. If the imported admin did not match
-   the bootstrap username, change its password now. Remove
-   `INITIAL_ADMIN_PASSWORD` from Render's environment after the migration.
-5. In the admin screen, create individual accounts for approved users and set
-   the email address for each admin who should receive reports. Share the
-   HTTPS link only with your group. The login page can be visited by anyone
-   who knows the URL, but app pages and data APIs require a valid login.
+   single bootstrap admin, copies existing users and records, and hashes legacy
+   plain-text passwords. Keep the database URL private.
+4. Open the Render web-service URL, sign in, confirm the records and admin
+   email addresses, and remove `INITIAL_ADMIN_PASSWORD` from the Render
+   environment after migration. If you did not migrate the old admin account,
+   sign in with the new bootstrap account instead.
+5. In the admin screen, create accounts only for approved users and set the
+   email address on every admin profile that should receive reports.
+6. In the private GitHub repository, open **Actions** and enable workflows if
+   GitHub asks. Select **Daily and monthly email reports → Run workflow** to
+   test sending. Check the run logs for errors, and then verify the next daily
+   scheduled run.
 
 ## Scheduled reports
 
-The cron job runs every day at 17:30 India time (12:00 UTC). It sends the daily
-summary and, on the last calendar day of each month, the monthly Excel report
-in the same run. Reports are sent to admins with an email address saved in
-their profile. The web app does not need to be open, and your computer can be
-off. Review the cron run history and logs in Render after deployment. The SMTP
-settings are private service environment variables shared with the cron job.
+The GitHub Actions workflow in `.github/workflows/daily-reports.yml` uses
+`0 12 * * *` UTC, which is 5:30 PM India time. Every run sends the daily
+summary. On the last calendar day of the month, that same run also sends the
+monthly Excel report. Reports go to admin addresses saved in their profiles.
+The workflow runs independently of your laptop and the web service being open.
+GitHub scheduled workflows can be delayed or dropped during high load; review
+**Actions → Daily and monthly email reports** for run status and logs.
 
-## Notes
+## Limitations and privacy
 
+- The free Render web service can sleep after inactivity and take about a
+  minute to start when next opened. Its local filesystem is temporary, so the
+  database must stay on Neon, not in `cng.db` on Render.
+- Check the current Neon free-plan storage/compute limits and GitHub Actions
+  free-minute quota for your account. Set usage alerts or limits where
+  available.
 - The app's Excel-style page and authenticated **Download Excel** link read
-  from the same PostgreSQL database, so all signed-in users see shared data.
-- Keep automatic database backups enabled and test a restore. Hosting and
-  scheduled jobs depend on the Render account, service status, and billing.
-- If a report run fails, Render marks the cron run as failed and records logs;
-  fix the SMTP or admin-email configuration and manually trigger the job.
-- Do not expose the Render database URL publicly. Users never need Python,
-  PostgreSQL, or a local database installed on their devices.
+  from the shared PostgreSQL database. The app requires login for records and
+  data APIs, although anyone with the URL can reach the sign-in page.
+- A free tier may change its terms or limits. Keep an independent backup of
+  important records.
+- Do not expose the database URL, SMTP app password, or Render secret key.
